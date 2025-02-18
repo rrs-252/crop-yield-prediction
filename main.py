@@ -143,4 +143,52 @@ def predict_yield(config: Config, args: argparse.Namespace):
     # Make prediction
     with torch.no_grad():
         prediction, uncertainty, attention_weights = model(
-            torch.FloatTensor(processed_data['weather'].values))
+            torch.FloatTensor(processed_data['weather'].values),
+            torch.FloatTensor(processed_data['soil'].values),
+            torch.FloatTensor(processed_data['satellite'].values)
+        )
+    
+    result = {
+        'predicted_yield': prediction.item(),
+        'uncertainty': uncertainty.item(),
+        'attention_weights': attention_weights.numpy(),
+        'location': {
+            'latitude': args.latitude,
+            'longitude': args.longitude
+        },
+        'prediction_date': datetime.now().strftime('%Y-%m-%d'),
+    }
+    
+    print("\nPrediction Results:")
+    print(f"Predicted Yield: {result['predicted_yield']:.2f}")
+    print(f"Uncertainty: ±{result['uncertainty']:.2f}")
+    
+    return result
+
+def main():
+    args = parse_args()
+    config = Config.from_yaml(args.config)
+    
+    if args.mode == 'train':
+        if not args.data_path:
+            raise ValueError("data_path is required for training mode")
+        training_history = train_model(config, args)
+        print(f"Final training metrics: {training_history[-1]}")
+    
+    elif args.mode == 'predict':
+        if not all([args.latitude, args.longitude]):
+            raise ValueError("latitude and longitude are required for prediction mode")
+        prediction_result = predict_yield(config, args)
+        
+        # Save prediction result
+        output_dir = Path('predictions')
+        output_dir.mkdir(exist_ok=True)
+        
+        output_file = output_dir / f"prediction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(output_file, 'w') as f:
+            json.dump(prediction_result, f, indent=2)
+        
+        print(f"\nPrediction results saved to: {output_file}")
+
+if __name__ == "__main__":
+    main()
