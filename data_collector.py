@@ -15,7 +15,7 @@ class DataCollector:
             "name": f"Field_{lat}_{lon}",
             "geo_json": {
                 "type": "Feature",
-                "propertied":{},
+                "properties":{},
                 "geometry": {
                     "type": "Polygon",
                     "coordinates": [[
