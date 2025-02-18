@@ -1,5 +1,5 @@
 import pandas as pd
-from config_file import Config
+from config import Config
 from data_collector import DataCollector
 from data_preprocessor import DataPreprocessor
 from datetime import datetime
