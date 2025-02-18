@@ -11,36 +11,35 @@ class DataCollector:
         
     def create_field_polygon(self, lat: float, lon: float, field_size: float = 0.01) -> Optional[str]:
     """Create a polygon for field monitoring"""
-    polygon_data = {
-        "name": f"Field_{lat}_{lon}",
-        "geo_json": {
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [[
-                    [round(lon - field_size, 6), round(lat - field_size, 6)],
-                    [round(lon + field_size, 6), round(lat - field_size, 6)],
-                    [round(lon + field_size, 6), round(lat + field_size, 6)],
-                    [round(lon - field_size, 6), round(lat + field_size, 6)],
-                    [round(lon - field_size, 6), round(lat - field_size, 6)]
-                ]]
+        polygon_data = {
+            "name": f"Field_{lat}_{lon}",
+            "geo_json": {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [round(lon - field_size, 6), round(lat - field_size, 6)],
+                        [round(lon + field_size, 6), round(lat - field_size, 6)],
+                        [round(lon + field_size, 6), round(lat + field_size, 6)],
+                        [round(lon - field_size, 6), round(lat + field_size, 6)],
+                        [round(lon - field_size, 6), round(lat - field_size, 6)]
+                    ]]
+                }
             }
         }
-    }
 
-    try:
-        response = requests.post(
-            f"{self.config.AGRO_API_BASE_URL}/polygons?appid={self.api_key}",
-            json=polygon_data,
-            headers={"Content-Type": "application/json"}
-        )
-        response.raise_for_status()
-        return response.json().get('id')
-    except requests.RequestException as e:
-        print(f"Error creating polygon: {e}")
-        print(f"Response: {response.content}")
-        return None
-
+        try:
+            response = requests.post(
+                f"{self.config.AGRO_API_BASE_URL}/polygons?appid={self.api_key}",
+                json=polygon_data,
+                headers={"Content-Type": "application/json"}
+            )
+            response.raise_for_status()
+            return response.json().get('id')
+        except requests.RequestException as e:
+            print(f"Error creating polygon: {e}")
+            print(f"Response: {response.content}")
+            return None
 
     def collect_weather_data(self, polygon_id: str, start_date: datetime, 
                            end_date: datetime) -> pd.DataFrame:
