@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Initialize configurations and classes
 config = Config()
-data_collector = DataCollector(api_key="YOUR_API_KEY", config=config)
+data_collector = DataCollector(api_key="5db7753cf7e1a974538d666748a23a2c", config=config)
 data_preprocessor = DataPreprocessor()
 
 # Step 1: Create Field Polygon
