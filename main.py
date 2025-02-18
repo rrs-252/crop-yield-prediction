@@ -31,7 +31,7 @@ def load_historical_data(data_path: str) -> pd.DataFrame:
 
 def prepare_datasets(features_df: pd.DataFrame, 
                     yields: np.array,
-                    batch_size: int) -> Tuple[DataLoader, DataLoader]:
+                    batch_size: int) -> tuple[DataLoader, DataLoader]:
     """Prepare train and validation datasets"""
     X_train, X_valid, y_train, y_valid = train_test_split(
         features_df, yields, test_size=0.2, random_state=42
