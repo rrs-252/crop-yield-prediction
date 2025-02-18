@@ -142,4 +142,4 @@ def predict_yield(config: Config, args: argparse.Namespace):
     # Make prediction
     with torch.no_grad():
         prediction, uncertainty, attention_weights = model(
-            torch.FloatTensor(processed_data['weather'].values
+            torch.FloatTensor(processed_data['weather'].values))
