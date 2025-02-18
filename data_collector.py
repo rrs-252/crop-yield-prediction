@@ -10,7 +10,7 @@ class DataCollector:
         self.config = config
         
     def create_field_polygon(self, lat: float, lon: float, field_size: float = 0.01) -> Optional[str]:
-    """Create a polygon for field monitoring"""
+        """Create a polygon for field monitoring"""
         polygon_data = {
             "name": f"Field_{lat}_{lon}",
             "geo_json": {
