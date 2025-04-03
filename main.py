@@ -12,10 +12,13 @@ class YieldPredictor:
 
     def fetch_climate_data(self, latitude, longitude):
         """Fetch climate data from NASA POWER API."""
-        params = {"start": 2001, "end": 2020,
-                  "latitude": latitude,
-                  "longitude": longitude,
-                  "parameters": ",".join(["T2M", "PRECTOTCORR", "RH2M", "CDD18_3"])}
+        params = {
+            "start": 2001,
+            "end": 2020,
+            "latitude": latitude,
+            "longitude": longitude,
+            "parameters": ",".join(["T2M", "PRECTOTCORR", "RH2M", "CDD18_3"])
+        }
         
         response = requests.get("https://power.larc.nasa.gov/api/temporal/climatology/point", params=params).json()
         return response
@@ -24,6 +27,7 @@ class YieldPredictor:
         """Predict crop yield using coordinates and crop type."""
         
         # Fetch climate data using coordinates
+        print("Fetching climate data...")
         climate_json = self.fetch_climate_data(latitude, longitude)
         
         # Process climate data
@@ -36,11 +40,34 @@ class YieldPredictor:
         crop_encoded = self.processor.encode_crop_info(crop_type)
         
         # Make prediction
+        print("Predicting yield...")
         prediction = self.model.predict([np.array([climate_processed]), np.array([soil_processed]), crop_encoded])[0][0]
         
-        print(f"Predicted Yield: {prediction:.2f} kg/ha")
+        print(f"Predicted Yield for {crop_type}: {prediction:.2f} kg/ha")
 
-# Example usage:
-# predictor = YieldPredictor()
-# predictor.predict_yield(latitude=14.6794, longitude=77.5983,
-#                         crop_type='Groundnut')
+
+# Main function to handle user input
+def main():
+    print("Welcome to the Crop Yield Prediction System!")
+    
+    try:
+        # Get user input for latitude and longitude
+        latitude = float(input("Enter Latitude (e.g., 14.6794): "))
+        longitude = float(input("Enter Longitude (e.g., 77.5983): "))
+        
+        # Get user input for crop type
+        crop_type = input("Enter Crop Type (e.g., Groundnut): ").strip()
+        
+        # Initialize predictor and make predictions
+        predictor = YieldPredictor()
+        predictor.predict_yield(latitude, longitude, crop_type)
+    
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+# Run the main function when the script is executed
+if __name__ == "__main__":
+    main()
