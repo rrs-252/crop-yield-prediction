@@ -9,18 +9,26 @@ class YieldPredictor:
         self.processor = DataProcessor()
         self.processor.load_preprocessors()  # Load preprocessors
 
-    def fetch_climate_data(self, lat, lon):
+    def fetch_climate_data(self, latitude, longitude):
+        """Fetch climate data from NASA POWER API."""
         params = {"start": 2001, "end": 2020,
-                  "latitude": lat,
-                  "longitude": lon,
+                  "latitude": latitude,
+                  "longitude": longitude,
                   "parameters": ",".join(["T2M", "PRECTOTCORR", "RH2M", "CDD18_3"])}
         
         response = requests.get("https://power.larc.nasa.gov/api/temporal/climatology/point", params=params).json()
         return response
 
-    def predict_yield(self, lat, lon, crop_info):
-        climate_json = self.fetch_climate_data(lat, lon)
+    def predict_yield(self, district_name, crop_info):
+        """Predict crop yield using climate, soil, and crop data."""
         
+        # Get coordinates for the district
+        latitude, longitude = self.processor.get_coordinates(district_name)
+        
+        # Fetch climate data using coordinates
+        climate_json = self.fetch_climate_data(latitude, longitude)
+        
+        # Process climate data
         climate_processed = self.processor.process_climate(climate_json)
         
         # Replace with actual soil data lookup logic or mock data here:
@@ -34,6 +42,8 @@ class YieldPredictor:
 
 # Example usage:
 # predictor = YieldPredictor()
-# predictor.predict_yield(lat=14.5833, lon=77.8333,
-#                         crop_info={'state': 'Andhra Pradesh', 'district': 'ANANTAPUR',
-#                                    'crop': 'Groundnut', 'season': 'Kharif'})
+# predictor.predict_yield(district_name="ANANTAPUR",
+#                         crop_info={'state': 'Andhra Pradesh', 
+#                                    'district': 'ANANTAPUR',
+#                                    'crop': 'Groundnut',
+#                                    'season': 'Kharif'})
