@@ -1,5 +1,6 @@
-import numpy as np
 import pandas as pd
+from sklearn.neighbors import BallTree
+import numpy as np
 from sklearn.preprocessing import OrdinalEncoder, StandardScaler
 import joblib
 
@@ -9,7 +10,20 @@ class DataProcessor:
         self.soil_features = ['T_OC', 'PH_H2O', 'T_CLAY', 'T_SAND', 'T_CEC', 'T_BS']
         self.crop_encoder = OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1)
         self.scaler = StandardScaler()
-        self.district_coordinates = pd.read_csv('districts_coordinates.csv')  # Load district coordinates
+        
+        # Load district coordinates
+        self.district_coordinates = pd.read_csv('districts_coordinates.csv')
+        self.tree = BallTree(
+            np.radians(self.district_coordinates[['Latitude', 'Longitude']].values),
+            metric='haversine'
+        )
+
+    def get_nearest_district(self, latitude, longitude):
+        """Find the nearest district based on latitude and longitude."""
+        coords = np.radians([[latitude, longitude]])
+        dist, idx = self.tree.query(coords, k=1)
+        nearest_district = self.district_coordinates.iloc[idx[0][0]]
+        return nearest_district['District Name']
 
     def process_climate(self, json_data):
         """Process NASA POWER API response into seasonal features."""
@@ -33,22 +47,10 @@ class DataProcessor:
             hwsd_row['T_OC']
         ])
 
-    def process_crop(self, df):
-        """Clean and transform crop data."""
-        df = df.dropna(subset=['Production', 'Area'])
-        df['Yield'] = df['Production'] / df['Area']
-        df = df[df['Yield'] < df.groupby('Crop')['Yield'].transform('mean') * 3]
-        
-        encoded = self.crop_encoder.fit_transform(df[['State_Name', 'District_Name', 'Crop', 'Season']])
-        return encoded, df['Yield']
-
-    def get_coordinates(self, district_name):
-        """Fetch latitude and longitude for a given district."""
-        district_info = self.district_coordinates[self.district_coordinates['District Name'] == district_name]
-        if not district_info.empty:
-            return district_info.iloc[0]['Latitude'], district_info.iloc[0]['Longitude']
-        else:
-            raise ValueError(f"Coordinates for district '{district_name}' not found.")
+    def encode_crop_info(self, crop_type):
+        """Encode crop type."""
+        encoded = self.crop_encoder.fit_transform([[crop_type]])
+        return encoded
 
     def save_preprocessors(self):
         """Save preprocessors for future use."""
@@ -58,4 +60,3 @@ class DataProcessor:
     def load_preprocessors(self):
         """Load preprocessors for inference."""
         self.crop_encoder = joblib.load('preprocessing/crop_encoder.joblib')
-        self.scaler = joblib.load('preprocessing/scaler.joblib')
