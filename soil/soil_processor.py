@@ -2,7 +2,7 @@ import rasterio
 from rasterio.transform import rowcol
 
 class SoilProcessor:
-    def __init__(self, hwsd_path: str = "data/HWSD/hwsd.bil"):
+    def __init__(self, hwsd_path: str = "data/HWSD2/hwsd2.bil"):
         self.hwsd_path = hwsd_path
         self.soil_params = {
             1: "T_OC",    # Organic Carbon
