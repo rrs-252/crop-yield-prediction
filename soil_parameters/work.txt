@@ -1,1 +1,0 @@
-This is creation of directory for the Soil Parameters Dataset. The soil parameters here are derived from Harmonic World Soil Database v2 by FAOSTAT.
