@@ -1,1 +1,0 @@
-This is the creation of directory to retrieve dataset for training the model.
