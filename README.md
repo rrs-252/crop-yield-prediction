@@ -171,12 +171,6 @@ docker run -it crop-yield-predictor
 
 ---
 
-## License
-
-This project is licensed under the MIT License.
-
----
-
 ## Acknowledgments
 
 1. [ICRISAT](https://www.icrisat.org/) for providing historical agricultural data.
