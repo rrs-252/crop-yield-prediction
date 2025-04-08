@@ -50,7 +50,7 @@ crop-yield-predictor/
 
 ### 1. Clone the Repository
 
-git clone https://github.com/yourusername/crop-yield-predictor.git
+git clone https://github.com/yourusername/crop-yield-prediction.git
 cd crop-yield-predictor
 
 ### 2. Install Dependencies
