@@ -105,3 +105,26 @@ class AgriDataProcessor:
         table = pa.Table.from_pandas(df)
         pq.write_to_dataset(table, root_path=output_path, 
                           partition_cols=['year', 'crop'])
+
+    
+    # Recommended data_processor.py enhancement
+    def integrate_soil_data(geo_df, soil_df):
+    """Map state-level soil data to districts using weighted averages"""
+    # Calculate weights based on district count per state
+    state_weights = geo_df['State Name'].value_counts(normalize=True)
+    
+    merged = geo_df.merge(
+        soil_df,
+        left_on='State Name',
+        right_on='State',
+        how='left'
+    )
+    
+    # Distribute state-level values proportionally
+    soil_params = ['Nitrogen', 'Phosphorous', 'OC']
+    for param in soil_params:
+        merged[f'{param}_district'] = merged[f'{param} - Medium'] * state_weights[merged['State Name']]
+    
+    return merged[['District Name', 'Latitude', 'Longitude', 'Nitrogen_district', 
+                  'Phosphorous_district', 'OC_district']]
+
