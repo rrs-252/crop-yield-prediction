@@ -10,7 +10,7 @@ This project predicts crop yields using a **Deep Fusion Neural Network** that in
   - Climate data from [NASA POWER](https://power.larc.nasa.gov/)
   - Historical crop yield data from ICRISAT (2008–2017)
 - **Deep Fusion Neural Network**:
-  - Combines temporal (climate), spatial (soil), and crop-specific embeddings
+  - Combines temporal (climate), and crop-specific embeddings
   - Uses attention mechanisms to focus on critical features
 - **Spatial Indexing**:
   - Finds the nearest district for user-provided coordinates
