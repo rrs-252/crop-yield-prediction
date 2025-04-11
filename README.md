@@ -8,7 +8,6 @@ This project predicts crop yields using a **Deep Fusion Neural Network** that in
 
 - **Multi-Source Data Integration**:
   - Climate data from [NASA POWER](https://power.larc.nasa.gov/)
-  - Soil properties from Soil Health Card (Government of India)
   - Historical crop yield data from ICRISAT (2008–2017)
 - **Deep Fusion Neural Network**:
   - Combines temporal (climate), spatial (soil), and crop-specific embeddings
