@@ -6,6 +6,7 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 from .nasa_power_handler import NASAPowerClient
 from .geospatial import GeoLocator
+import torch
 
 class AgriDataProcessor:
     def __init__(self, crop_csv, ndvi_csv, geo_csv):
