@@ -1,38 +1,44 @@
 # deep_fusion.py
-import tensorflow as tf
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
-class TemporalFusionModel(tf.keras.Model):
-    def __init__(self, num_districts=1000):
+class DeepFusionModel(nn.Module):
+    def __init__(self, num_districts=1000, num_crops=6):
         super().__init__()
         
         # Climate feature encoder
-        self.climate_encoder = tf.keras.Sequential([
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dropout(0.2)
-        ])
+        self.climate_encoder = nn.Sequential(
+            nn.Linear(3, 128),
+            nn.ReLU(),
+            nn.Dropout(0.2)
+        )
         
-        # District embedding
-        self.district_embedding = tf.keras.layers.Embedding(num_districts, 32)
+        # District embeddings
+        self.district_embed = nn.Embedding(num_districts, 64)
         
-        # Temporal attention
-        self.temporal_attention = tf.keras.layers.Attention()
+        # Crop embeddings
+        self.crop_embed = nn.Embedding(num_crops, 32)
         
-        # Final regressor
-        self.regressor = tf.keras.Sequential([
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(1, activation='linear')
-        ])
+        # Fusion layers
+        self.fusion = nn.Sequential(
+            nn.Linear(128+64+32, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
 
-    def call(self, inputs):
-        # Input processing
-        climate_features = self.climate_encoder(inputs['climate'])
-        district_emb = self.district_embedding(inputs['district'])
+    def forward(self, inputs):
+        """Input format:
+        - climate: [batch_size, 3] (gdd, precip, solar_rad)
+        - district: [batch_size] (district IDs)
+        - crop: [batch_size] (crop IDs)
+        """
+        climate_feat = self.climate_encoder(inputs['climate'])
+        district_emb = self.district_embed(inputs['district'])
+        crop_emb = self.crop_embed(inputs['crop'])
         
-        # Temporal fusion
-        context = self.temporal_attention([
-            climate_features, 
-            tf.expand_dims(district_emb, 1)
-        ])
-        
-        return self.regressor(context)
+        fused = torch.cat([climate_feat, district_emb, crop_emb], dim=1)
+        return self.fusion(fused)
