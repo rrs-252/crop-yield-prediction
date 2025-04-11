@@ -1,57 +1,44 @@
-import tensorflow as tf
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-import pandas as pd
-import pyarrow.parquet as pq
+import torch
+from torch.utils.data import DataLoader
+from torch.optim import Adam
+from torch.nn import MSELoss
+from tqdm import tqdm
 
-def train_model(data_path: str = "data/processed"):
-    """Train deep fusion model with climate data"""
-    # Load and prepare dataset
-    dataset = tf.data.Dataset.list_files(f"{data_path}/*/*.parquet") \
-        .interleave(lambda x: tf.data.Dataset.from_parquet(x)) \
-        .batch(64) \
-        .prefetch(tf.data.AUTOTUNE)
+def train_model(data_path="data/processed"):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    # Initialize model
-    model = create_model()
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(0.001),
-        loss='mse',
-        metrics=['mae']
-    )
+    # Initialize dataset and model
+    dataset = ClimateDataset(data_path)
+    model = DeepFusionModel(num_districts=len(dataset.district_map)).to(device)
     
-    # Train model
-    history = model.fit(
-        dataset,
-        epochs=200,
-        validation_split=0.2,
-        callbacks=[
-            EarlyStopping(patience=15, restore_best_weights=True),
-            ModelCheckpoint('model.keras', save_best_only=True)
-        ]
-    )
+    # Data loading
+    train_loader = DataLoader(dataset, batch_size=64, shuffle=True)
     
-    return model, history
-
-def create_model() -> tf.keras.Model:
-    """Deep fusion model architecture"""
-    inputs = {
-        'weather': tf.keras.Input(shape=(None, 3), name='weather'),
-        'district': tf.keras.Input(shape=(), dtype=tf.int32, name='district'),
-        'crop': tf.keras.Input(shape=(), dtype=tf.int32, name='crop')
-    }
+    # Training setup
+    optimizer = Adam(model.parameters(), lr=0.001)
+    criterion = MSELoss()
     
-    # Temporal stream
-    temporal = tf.keras.layers.LSTM(128, return_sequences=True)(inputs['weather'])
-    temporal = tf.keras.layers.GlobalAveragePooling1D()(temporal)
-    
-    # Spatial stream
-    district_emb = tf.keras.layers.Embedding(1000, 32)(inputs['district'])
-    
-    # Crop stream
-    crop_emb = tf.keras.layers.Embedding(6, 16)(inputs['crop'])
-    
-    # Fusion
-    fused = tf.keras.layers.Concatenate()([temporal, district_emb, crop_emb])
-    output = tf.keras.layers.Dense(1, activation='linear')(fused)
-    
-    return tf.keras.Model(inputs=inputs, outputs=output)
+    best_loss = float('inf')
+    for epoch in range(100):
+        model.train()
+        total_loss = 0
+        
+        for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}"):
+            inputs = {k: v.to(device) for k,v in batch.items() if k != 'yield'}
+            targets = batch['yield'].to(device)
+            
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
+            
+            total_loss += loss.item()
+        
+        avg_loss = total_loss / len(train_loader)
+        print(f"Epoch {epoch+1} | Loss: {avg_loss:.4f}")
+        
+        # Save best model
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            torch.save(model.state_dict(), 'best_model.pth')
