@@ -65,3 +65,24 @@ class AgriDataProcessor:
             root_path=output_path,
             partition_cols=['year', 'crop']
         )
+
+class ClimateDataset(torch.utils.data.Dataset):
+    def __init__(self, parquet_path):
+        self.df = pd.read_parquet(parquet_path)
+        self.district_map = {d: i for i, d in enumerate(self.df['district'].unique())}
+        self.crop_map = {
+            'rice': 0, 'wheat': 1, 'maize': 2,
+            'pearl_millet': 3, 'finger_millet': 4, 'barley': 5
+        }
+    
+    def __len__(self):
+        return len(self.df)
+    
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+        return {
+            'climate': torch.tensor([row['gdd'], row['precip'], row['solar_rad']], dtype=torch.float32),
+            'district': torch.tensor(self.district_map[row['district']], dtype=torch.long),
+            'crop': torch.tensor(self.crop_map[row['crop']], dtype=torch.long),
+            'yield': torch.tensor(row['yield'], dtype=torch.float32)
+        }
