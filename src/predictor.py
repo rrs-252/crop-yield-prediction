@@ -1,59 +1,52 @@
 import numpy as np
 import pandas as pd
-from geopy.distance import geodesic
+from .data_pipeline.geospatial import GeoLocator
 from sklearn.neighbors import BallTree
 
 class YieldPredictor:
-    def __init__(self, model_path='model.keras', data_path='processed_data'):
+    def __init__(self, model_path='model.keras'):
         self.model = tf.keras.models.load_model(model_path)
-        self.district_data = self._load_district_coordinates(data_path)
-        self.tree = self._build_spatial_index()
+        self.geolocator = GeoLocator('data/raw/geo_data.csv')
+        self.ndvi_vci = pd.read_csv('data/external/ndvi_vci.csv')
         
-    def _load_district_coordinates(self, data_path):
-        """Load processed data with district coordinates and features"""
-        df = pd.read_parquet(data_path)
-        return df.groupby(['district', 'state']).agg({
-            'lat': 'mean',
-            'lon': 'mean',
-            'gdd': 'mean',
-            'precip': 'mean',
-            'ph': 'mean',
-            'organic_carbon': 'mean'
-        }).reset_index()
-
-    def _build_spatial_index(self):
-        """Create BallTree for fast spatial queries"""
-        coords = np.deg2rad(self.district_data[['lat', 'lon']].values)
-        return BallTree(coords, metric='haversine')
-
-    def _find_nearest_district(self, lat, lon):
-        """Find closest district within 50km radius"""
-        query_point = np.deg2rad(np.array([[lat, lon]]))
-        dist, idx = self.tree.query(query_point, k=1)
-        distance_km = dist[0][0] * 6371  # Convert to kilometers
+        # Load district metadata
+        self.districts = pd.read_parquet('data/processed/').drop_duplicates(
+            ['district', 'state']
+        )
         
-        if distance_km > 50:
-            raise ValueError("No district found within 50km radius")
-            
-        return self.district_data.iloc[idx[0][0]]
-
-    def predict(self, lat, lon, crop_type):
-        """Predict yield for given coordinates and crop"""
-        district = self._find_nearest_district(lat, lon)
+        # Build spatial index
+        self.tree = BallTree(
+            np.deg2rad(self.districts[['lat', 'lon']].values),
+            metric='haversine'
+        )
+    
+    def predict(self, lat: float, lon: float, crop: str, year: int):
+        # Find nearest district
+        _, idx = self.tree.query(np.deg2rad([[lat, lon]]), k=1)
+        district = self.districts.iloc[idx[0][0]]
         
+        # Get NDVI/VCI
+        vegetation = self.ndvi_vci[
+            (self.ndvi_vci['State'] == district['state']) &
+            (self.ndvi_vci['Year'] == year)
+        ][['NDVI', 'VCI (%)']].mean().values
+        
+        # Prepare inputs
         inputs = {
-            'weather': np.array([[
+            'temporal': np.array([[
                 district['gdd'],
                 district['precip'],
-                district.get('solar_rad', 0)  # Handle missing feature
+                district['solar_rad'],
+                vegetation[0],
+                vegetation[1]
             ]]),
-            'district': [hash(f"{district['district']}{district['state']}") % 1000],
-            'soil': [[district['ph'], district['organic_carbon']]],
-            'crop': [self._crop_to_index(crop_type)]
+            'vegetation': vegetation.reshape(1, -1),
+            'district': [district['district_id']],
+            'crop': [self._crop_to_index(crop)]
         }
         
         return self.model.predict(inputs)[0][0]
-
+    
     def _crop_to_index(self, crop_name):
         crop_mapping = {
             'rice': 0, 'wheat': 1, 'maize': 2,
