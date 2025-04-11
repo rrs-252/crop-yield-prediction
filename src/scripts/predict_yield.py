@@ -1,38 +1,45 @@
-import tensorflow as tf
+import torch
 import numpy as np
-from src.data_pipeline.geospatial import GeoLocator
+from sklearn.neighbors import BallTree
 
 class YieldPredictor:
-    def __init__(self, model_path: str = 'model.keras'):
-        self.model = tf.keras.models.load_model(model_path)
-        self.geo_data = pd.read_parquet('data/processed')
-        self.geo_locator = GeoLocator(self.geo_data)
+    def __init__(self, model_path='best_model.pth', data_path='data/processed'):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.dataset = ClimateDataset(data_path)
         
-    def predict(self, lat: float, lon: float, crop: str) -> float:
-        """Predict crop yield for given location"""
-        try:
-            # Find nearest district
-            district = self.geo_locator.find_nearest_district(lat, lon)
-            
-            # Get district features
-            features = self.geo_data[self.geo_data['district'] == district].iloc[0]
-            
-            # Prepare model inputs
-            inputs = {
-                'weather': np.array([[features['gdd'], features['precip'], features['solar_rad']]]),
-                'district': np.array([features['district_id']]),
-                'crop': np.array([self._crop_to_index(crop)])
-            }
-            
-            return self.model.predict(inputs)[0][0]
-            
-        except Exception as e:
-            raise RuntimeError(f"Prediction failed: {str(e)}")
-    
-    def _crop_to_index(self, crop_name: str) -> int:
-        """Map crop name to model index"""
-        return {
-            'rice': 0, 'wheat': 1, 'maize': 2,
-            'pearl_millet': 3, 'finger_millet': 4, 'barley': 5
-        }[crop_name.lower()]
+        # Load model
+        self.model = DeepFusionModel(num_districts=len(self.dataset.district_map))
+        self.model.load_state_dict(torch.load(model_path))
+        self.model.to(self.device)
+        self.model.eval()
+        
+        # Spatial index
+        self.tree = BallTree(np.deg2rad(self.dataset.df[['lat','lon']].values), metric='haversine')
 
+    def predict(self, lat: float, lon: float, crop: str):
+        # Find nearest district
+        dist, idx = self.tree.query(np.deg2rad([[lat, lon]]), k=1)
+        if dist[0][0] * 6371 > 50:
+            raise ValueError("No district within 50km radius")
+        
+        district_data = self.dataset.df.iloc[idx[0][0]]
+        
+        # Prepare inputs
+        inputs = {
+            'climate': torch.tensor([
+                district_data['gdd'],
+                district_data['precip'],
+                district_data['solar_rad']
+            ], dtype=torch.float32).to(self.device),
+            'district': torch.tensor(
+                self.dataset.district_map[district_data['district']], 
+                dtype=torch.long
+            ).to(self.device),
+            'crop': torch.tensor(
+                self.dataset.crop_map[crop.lower()],
+                dtype=torch.long
+            ).to(self.device)
+        }
+        
+        with torch.no_grad():
+            return self.model(inputs).item()
