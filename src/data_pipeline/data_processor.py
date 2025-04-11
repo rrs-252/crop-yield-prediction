@@ -43,29 +43,54 @@ class AgriDataProcessor:
             return None
 
     def process_dataset(self, output_path="data/processed"):
-        """Main processing workflow"""
+        """Main processing workflow with enhanced error handling"""
+        # Create output directory if not exists
+        import os
+        os.makedirs(output_path, exist_ok=True)
+        
         features = []
         with ThreadPoolExecutor(max_workers=8) as executor:
             futures = [executor.submit(self.process_district, row) 
-                      for _, row in tqdm(self.geo_data.iterrows(), total=len(self.geo_data))]
-            for future in futures:
-                if (result := future.result()) is not None:
+                     for _, row in tqdm(self.geo_data.iterrows(), total=len(self.geo_data))]
+            
+            # Add progress tracking for completed tasks
+            for future in tqdm(as_completed(futures), total=len(futures), desc="Processing districts"):
+                result = future.result()
+                if result is not None:
                     features.append(result)
-        
-        # Merge with crop data
-        full_df = pd.merge(
-            pd.DataFrame(features),
-            self.crop_df,
-            left_on='district',
-            right_on='Dist Name'
-        ).dropna()
-        
-        # Save partitioned dataset
-        pq.write_to_dataset(
-            pa.Table.from_pandas(full_df),
-            root_path=output_path,
-            partition_cols=['year', 'crop']
-        )
+    
+        # Validate processed data before saving
+        if not features:
+            raise ValueError("No valid data processed - check input sources and API connections")
+    
+        # Merge with crop data using validated keys
+        try:
+            full_df = pd.merge(
+                pd.DataFrame(features),
+                self.crop_df.rename(columns={'Dist Name': 'district'}),
+                on=['district', 'year'],
+                how='inner'
+            )
+        except KeyError as e:
+            raise ValueError(f"Merge failed: Column {str(e)} not found in DataFrames")
+    
+        # Validate merged data
+        if full_df.empty:
+            raise ValueError("Merge resulted in empty DataFrame - check district name matching")
+    
+        # Save with partitioned structure
+        try:
+            table = pa.Table.from_pandas(full_df.dropna(subset=['year', 'crop']))
+            pq.write_to_dataset(
+                table,
+                root_path=output_path,
+                partition_cols=['year', 'crop'],
+                existing_data_behavior='delete_matching'
+            )
+            print(f"Successfully wrote data to {os.path.abspath(output_path)}")
+        except Exception as e:
+            raise IOError(f"Failed to write Parquet files: {str(e)}")
+
 
 class ClimateDataset(torch.utils.data.Dataset):
     def __init__(self, parquet_path):
