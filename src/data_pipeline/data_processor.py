@@ -4,8 +4,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
-from nasa_power_handler import NASAPowerClient
-from geospatial import GeoLocator
+from .nasa_power_handler import NASAPowerClient
+from .geospatial import GeoLocator
 import torch
 
 class AgriDataProcessor:
