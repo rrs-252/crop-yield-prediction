@@ -135,6 +135,25 @@ def main():
 
     # Plot comparison metrics
     plot_regression_metrics(all_metrics)
+
+    plot_training_curves(dl_histories)
+
+    # Generate detailed visualizations for each model
+    for model_name in all_metrics:
+        if model_name in dl_models:
+            model = dl_models[model_name]
+            with torch.no_grad():
+                y_pred = model(
+                    torch.FloatTensor(X_test_scaled).to(device)
+                ).cpu().numpy()
+        else:
+            model = joblib.load(f"saved_models/{model_name}.joblib")
+            y_pred = model.predict(X_test_scaled)
+            
+        plot_actual_vs_predicted(Y_test, y_pred, model_name)
+        plot_error_distribution(Y_test, y_pred, model_name)
+
+    print("\nAll visualizations saved to plots/ directory")
     
     # Print final metrics
     print("\nFinal Model Performance Comparison:")
@@ -144,9 +163,6 @@ def main():
         print(f"  MAE: {metrics['MAE']:.2f}")
         print(f"  R²: {metrics['R2']:.2f}")
         print(f"  Adjusted R²: {metrics['Adjusted R2']:.2f}")
-
-if __name__ == "__main__":
-    main()
 
 if __name__ == "__main__":
     main()
