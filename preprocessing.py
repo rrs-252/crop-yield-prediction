@@ -2,9 +2,9 @@ import pandas as pd
 
 def load_and_preprocess():
     # Load all datasets
-    climate = pd.read_csv("./data/Climate_Data_Wide.csv")
-    ndvi = pd.read_csv("./data/NDVI_VCI_India_States.csv")
-    icrisat = pd.read_csv("./data/ICRISAT-District-Level-Data.csv")
+    climate = pd.read_csv("./data/raw/Climate_Data_Wide.csv")
+    ndvi = pd.read_csv("./data/raw/NDVI_VCI_India_States.csv")
+    icrisat = pd.read_csv("./data/raw/ICRISAT-District-Level-Data.csv")
 
     # Enhanced column standardization
     def standardize_columns(df):
@@ -54,7 +54,7 @@ def load_and_preprocess():
     merged['Thermal_Time'] = merged['GDD'] * merged['T2M_MAX']
     
     # Final cleanup
-    merged.to_csv("./Downloads/preprocessed_crop_data.csv", index=False)
+    merged.to_csv("./data/processed/preprocessed_crop_data.csv", index=False)
     return merged.dropna(thresh=merged.shape[1]-3)
 
 load_and_preprocess()
